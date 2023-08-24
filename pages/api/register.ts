@@ -17,6 +17,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
 
         });
+        if (!email || !name || !password) {
+            return res.status(422);
+
+        }
         if (existingUser) {
             return res.status(422).json({ message: 'User already exists' });
 

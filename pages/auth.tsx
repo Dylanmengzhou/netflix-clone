@@ -1,10 +1,14 @@
+/* eslint-disable @next/next/no-img-element */
 import { useCallback, useState } from "react";
 import axios from "axios";
 import Input from "../components/Input";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
+import { set } from "mongoose";
 const Auth = () => {
+  const [buttonClicked, setButtonClicked] = useState(false);
   const router = useRouter();
+  const [error, setError] = useState("");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -13,17 +17,27 @@ const Auth = () => {
     setVariant((currentVariant) =>
       currentVariant === "login" ? "register" : "login"
     );
+    setError(""); // Clear the error when toggling the variant
+    setButtonClicked(false);
   }, []);
 
   const login = useCallback(async () => {
     try {
-      await signIn("credentials", {
+      const result = await signIn("credentials", {
         email,
         password,
         redirect: false,
         callbackUrl: "/",
       });
-      router.push("/");
+      if (result?.error) {
+        if (result.error !== "Email and password are required") {
+          setError(result.error);
+        } else {
+          setError("");
+        }
+      } else {
+        router.push("/");
+      }
     } catch (error) {
       console.log(error);
     }
@@ -37,11 +51,11 @@ const Auth = () => {
         password,
       });
       login();
-    } catch (error) {
-      console.log(error);
+    } catch (error: any) {
+      // fix the bug: it said the error is unknown
+      setError(error.response?.data?.message);
     }
   }, [email, name, password, login]);
-
   return (
     <div className="relative h-full w-full bg-[url('/images/hero.jpg')] bg-no-repeat bg-center bg-fixed bg-cover">
       <div className="bg-black w-full h-full lg:bg-opacity-50">
@@ -62,6 +76,11 @@ const Auth = () => {
                   value={name}
                 />
               )}
+              {variant === "register" && (
+                <p className="text-red-500 text-xs">
+                  {buttonClicked && name.length === 0 && "Username is required"}
+                </p>
+              )}
               <Input
                 label="Email"
                 onChange={(ev: any) => setEmail(ev.target.value)}
@@ -69,6 +88,11 @@ const Auth = () => {
                 type="email"
                 value={email}
               />
+              {
+                <p className="text-red-500 text-xs">
+                  {buttonClicked && email.length === 0 && "Email is required"}
+                </p>
+              }
               <Input
                 label="Password"
                 onChange={(ev: any) => setPassword(ev.target.value)}
@@ -76,9 +100,25 @@ const Auth = () => {
                 type="password"
                 value={password}
               />
+              {
+                <p className="text-red-500 text-xs">
+                  {buttonClicked &&
+                    password.length === 0 &&
+                    "Password is required"}
+                </p>
+              }
+              <div
+                id="error-box"
+                className="flex justify-center items-center text-red-500 text-sm text-center"
+              >
+                {error}
+              </div>
             </div>
             <button
-              onClick={variant === "login" ? login : register}
+              onClick={() => {
+                setButtonClicked(true);
+                variant === "login" ? login() : register();
+              }}
               className="bg-red-600 py-3 text-white rounded-md w-full mt-10 hover:bg-red-700 transition"
             >
               {variant === "login" ? "Login" : "Sign Up"}
